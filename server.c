@@ -2,82 +2,88 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
+#include <pthread.h>
+#include <sys/ipc.h>
 #include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <semaphore.h>
 
-#define CLEARSCREEN "\e[1;1H\e[2J"
+#define THREADSIZE 32
 
+void factorize(void *ptr);
+int *createNumberList(int num);
 
-int main()
-{
+/* main */
+int main() {
+
+    // Variables for shared memory
     const char * name = "shared_memory";
-    const char * sema1= "fill";
-    const char * sema2= "avail";
-    const char * sema3= "mutex";
-    int shm_fd;   //shared memory file discriptor
+    int shm_fd;
     int * shelf;
-     
-    sem_t * fill, * avail, * mutex;
 
-    /* make * shelf shared between processes*/
-    //create the shared memory segment
+    // Creating shared memory
     shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
-    //configure the size of the shared memory segment
     ftruncate(shm_fd,sizeof(int));
-    //map the shared memory segment in process address space
     shelf = mmap(0,sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
-    // /* creat/open semaphores*/
-    // //cook post semaphore fill after cooking a pizza
-    // fill = sem_open(sema1, O_CREAT,0666,0);
-    // //waiter post semaphore avail after picking up a pizza, at the beginning avail=3
-    // avail = sem_open(sema2, O_CREAT, 0666, 3);
-    //mutex for mutual exclusion of shelf
-    mutex = sem_open(sema3,O_CREAT,0666,1);
+    // User input
+    // ==========================================
+    int *numberList = createNumberList(123);
+    
 
-    printf(CLEARSCREEN);
-    printf("- - SERVER started up - - ");
 
-    while(1) {
+    // ==========================================
+    pthread_t threads[THREADSIZE];
 
+    // Create threads
+    for(int i = 0; i < THREADSIZE; i++) {
+        pthread_create(&threads[i], NULL, (void *) &factorize, &numberList[i]);
     }
 
+    // Join threads
+    for(int i = 0; i < THREADSIZE; i++) {
+         pthread_join(threads[i], NULL);
+    }
 
-
-
-
-
-
-    // printf("\nCook: I have started cooking pizza.\n");
-    
-    // int loop=6; 
-    // while(loop--){
-    //     sem_wait(avail);
-    //     sleep(rand()%2+1);
-    //     sem_wait(mutex);
-    //     (* shelf)++;
-    //     sem_post(mutex);
-    //     printf("Cook: cook a pizza, there are %d pizza now\n", * shelf);
-    //     sem_post(fill);
-    // }
-
-    // printf("Cook: Time is up. I cooked 6 pizza. %d are left.\n", * shelf);
-
-    /* close and unlink semaphores*/
-    sem_close(fill);
-    sem_close(avail);
-    sem_close(mutex);
-    sem_unlink(sema1);
-    sem_unlink(sema2);
-    sem_unlink(sema3);
-
-    /* close and unlink shared memory*/
+    // Close and unlink shared memory
     munmap(shelf, sizeof(int));
     close(shm_fd);
     shm_unlink(name);
+
     return 0;
+}
+
+/* Perform trial by division factorisation*/
+void factorize(void *ptr) {
+
+    int *num = (int *) ptr;
+    int factor = 2; // Base factor
+
+    while(*num > 1) {
+
+        // If it was a factor of the number
+        if(*num % factor == 0) {
+            printf("%d\n", factor); // Append factor to a list
+            *num = *num / factor; // Divide the factor from number
+        }
+
+        // If it was not a factor
+        else {
+            factor++; // Check next factor
+        }
+    }
+
+    pthread_exit(0); // Exit thread
+}
+
+
+/* Create a set of 32 numbers */
+int * createNumberList(int num) {
+
+    static int numList[THREADSIZE];
+
+    for(int i = 0; i < THREADSIZE; i++) {
+        num = num >> 1; // Rightwards bit rotation
+        numList[i] = num; // Append number to array
+    }
+
+    return numList;
 }

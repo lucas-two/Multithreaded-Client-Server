@@ -3,60 +3,44 @@
 #include <pthread.h>
 
 #define THREADSIZE 32
+#define MAX 100
 
-void factorize(void *ptr);
-int * createNumberList(int num);
+int foo(int num);
 
 /* main */
 int main()
-{   
-    int *numberList = createNumberList(24);
+{       
+    int queryNo = 1;
 
-    pthread_t threads[THREADSIZE];
+    // Application
+    while(1) {
 
-    for(int i = 0; i < THREADSIZE; i++) {
-        pthread_create(&threads[i], NULL, (void *) &factorize, &numberList[i]);
-    }
+        char request[MAX]; // What we ask the server
+        int inputNumber; // Number we will factorize
 
-    for(int i = 0; i < THREADSIZE; i++) {
-         pthread_join(threads[i], NULL);
-    }
+        printf("[%d] Enter Query: ", queryNo);
+        gets(request);
 
-}
-
-/* Perform trial by division factorisation*/
-void factorize(void *ptr) {
-
-    int *num = (int *) ptr;
-    int factor = 2; // Base factor
-
-    while(*num > 1) {
-
-        // If it was a factor of the number
-        if(*num % factor == 0) {
-            printf("%d\n", factor); // Append factor to a list
-            *num = *num / factor; // Divide the factor from number
+        // Exit if quit is called.
+        if(strcmp(request, "quit") == 0) {
+            break;
         }
 
-        // If it was not
         else {
-            factor++;
+            inputNumber = atoi(request);
+            printf("[%d] Query Response: %d\n", queryNo, inputNumber);
+            queryNo++;
+            foo(inputNumber);
         }
     }
 
-    pthread_exit(0); // Leave thread
+    return 0;
 }
 
+int foo(int num) {
+    int pid = fork();
 
-/* Create a set of 32 numbers */
-int * createNumberList(int num) {
-
-    static int numList[THREADSIZE];
-
-    for(int i = 0; i < THREADSIZE; i++) {
-        num = num >> 1; // Rightwards bit rotation
-        numList[i] = num; // Append number to array
+    if(pid == 0) {
+        printf("%d\n", num);
     }
-
-    return numList;
 }
